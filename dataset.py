@@ -23,7 +23,7 @@ PARAMETERS = [
     "WD2M",
     "ALLSKY_SFC_SW_DWN",
 ]
-OUTPUT_CSV = "dakshina_kannada_rainfall_daily_2000_2024.csv"
+OUTPUT_CSV = "TrainModels/dakshina_kannada_rainfall_daily_2000_2024.csv"
 
 
 def build_url(parameters):

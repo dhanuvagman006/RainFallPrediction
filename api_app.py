@@ -45,18 +45,23 @@ FEATURE_COLS = [
 ]
 TARGET_COL = "prectotcorr"
 
-MODEL_CONFIGS = {
-    "lstm": {"sequence_length": 1, "model_file": "lstm.keras"},
-    "gru": {"sequence_length": 1, "model_file": "gru.keras"},
-    "bilstm": {"sequence_length": 1, "model_file": "bilstm.keras"},
-    "tcn": {"sequence_length": 1, "model_file": "tcn.keras"},
-    "hybrid": {"sequence_length": 7, "model_file": "hybrid.keras"},
-    "transformer": {"sequence_length": 14, "model_file": "transformer.keras"},
-}
+MODEL_NAMES = ["lstm", "gru", "bilstm", "tcn", "hybrid", "transformer"]
+SEQUENCE_LENGTHS = [1, 7, 14]
 
 
 class PredictRequest(BaseModel):
     sequence: List[List[float]] = Field(..., description="Sequence of daily feature rows.")
+
+
+class IrrigationRequest(BaseModel):
+    tank_liters: float = Field(..., ge=0)
+    soil_moisture_percent: float = Field(..., ge=0, le=100)
+    arecanut_palms: float = Field(..., ge=0)
+    coconut_palms: float = Field(..., ge=0)
+    paddy_area_m2: float = Field(..., ge=0)
+    rainfall_forecast_mm: List[float] | None = None
+    model_name: str | None = None
+    sequence: List[List[float]] | None = None
 
 
 app = FastAPI(title="Rainfall Prediction API")
@@ -89,15 +94,17 @@ def get_scalers() -> Dict[str, MinMaxScaler]:
     return _scaler_cache
 
 
-def get_model(model_name: str):
-    if model_name in _model_cache:
-        return _model_cache[model_name]
+def get_model(model_name: str, seq_len: int):
+    cache_key = f"{model_name}_{seq_len}d"
+    if cache_key in _model_cache:
+        return _model_cache[cache_key]
 
-    config = MODEL_CONFIGS.get(model_name)
-    if not config:
+    if model_name not in MODEL_NAMES:
         raise KeyError(f"Unknown model: {model_name}")
+    if seq_len not in SEQUENCE_LENGTHS:
+        raise KeyError(f"Unsupported sequence length: {seq_len}")
 
-    model_path = MODELS_DIR / config["model_file"]
+    model_path = MODELS_DIR / f"{model_name}_{seq_len}d.keras"
     if not model_path.exists():
         raise FileNotFoundError(f"Model file not found: {model_path}")
 
@@ -108,7 +115,7 @@ def get_model(model_name: str):
     else:
         model = load_model(model_path)
 
-    _model_cache[model_name] = model
+    _model_cache[cache_key] = model
     return model
 
 
@@ -141,15 +148,21 @@ def model_page(model_name: str):
     return FileResponse(page_path)
 
 
+@app.get("/irrigation")
+def irrigation_page():
+    page_path = FRONTEND_DIR / "irrigation.html"
+    return FileResponse(page_path)
+
+
 @app.get("/api/models")
 def list_models():
     response = [
         {
             "name": name,
-            "sequence_length": config["sequence_length"],
+            "sequence_lengths": SEQUENCE_LENGTHS,
             "features": FEATURE_COLS,
         }
-        for name, config in MODEL_CONFIGS.items()
+        for name in MODEL_NAMES
     ]
     return JSONResponse(response)
 
@@ -166,16 +179,19 @@ def get_metrics():
 
 @app.post("/api/predict/{model_name}")
 def predict(model_name: str, payload: PredictRequest):
-    config = MODEL_CONFIGS.get(model_name)
-    if not config:
+    if model_name not in MODEL_NAMES:
         raise HTTPException(status_code=404, detail="Unknown model")
 
+    seq_len = len(payload.sequence)
+    if seq_len not in SEQUENCE_LENGTHS:
+        raise HTTPException(status_code=400, detail="Unsupported sequence length")
+
     try:
-        x_input = prepare_sequence(payload.sequence, config["sequence_length"])
+        x_input = prepare_sequence(payload.sequence, seq_len)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    model = get_model(model_name)
+    model = get_model(model_name, seq_len)
     preds_scaled = model.predict(x_input, verbose=0)
     if preds_scaled.ndim == 2:
         preds_scaled = preds_scaled.reshape(-1, 1)
@@ -185,3 +201,109 @@ def predict(model_name: str, payload: PredictRequest):
     prediction = float(max(0.0, preds[0][0]))
 
     return {"model": model_name, "prediction": prediction}
+
+
+def moisture_factor(soil_moisture: float) -> float:
+    if soil_moisture >= 80:
+        return 0.4
+    if soil_moisture >= 60:
+        return 0.6
+    if soil_moisture >= 40:
+        return 0.8
+    return 1.0
+
+
+@app.post("/api/irrigation-plan")
+def irrigation_plan(payload: IrrigationRequest):
+    factor = moisture_factor(payload.soil_moisture_percent)
+
+    arecanut_daily = (175.0 / 7.0) * payload.arecanut_palms
+    coconut_daily = 225.0 * payload.coconut_palms
+    paddy_mm_per_day = 1175.0 / 120.0
+    paddy_daily = paddy_mm_per_day * payload.paddy_area_m2
+
+    rainfall_forecast = payload.rainfall_forecast_mm
+    if rainfall_forecast is not None:
+        if len(rainfall_forecast) != 14:
+            raise HTTPException(status_code=400, detail="Rainfall forecast must have 14 values.")
+
+    if rainfall_forecast is None and payload.model_name and payload.sequence:
+        seq_len = len(payload.sequence)
+        if seq_len not in SEQUENCE_LENGTHS:
+            raise HTTPException(status_code=400, detail="Unsupported sequence length for ML prediction.")
+        try:
+            x_input = prepare_sequence(payload.sequence, seq_len)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        model = get_model(payload.model_name, seq_len)
+        preds_scaled = model.predict(x_input, verbose=0)
+        if preds_scaled.ndim == 2:
+            preds_scaled = preds_scaled.reshape(-1, 1)
+        scalers = get_scalers()
+        preds = scalers["y"].inverse_transform(preds_scaled)
+        prediction = float(max(0.0, preds[0][0]))
+        rainfall_forecast = [prediction for _ in range(14)]
+
+    if rainfall_forecast is None:
+        rainfall_forecast = [0.0 for _ in range(14)]
+
+    base_daily = {
+        "Arecanut": arecanut_daily,
+        "Coconut": coconut_daily,
+        "Paddy": paddy_daily,
+    }
+
+    rng = np.random.default_rng(42)
+    daily_totals = []
+    for day_index in range(14):
+        rain_mm = rainfall_forecast[day_index]
+        paddy_after_rain = max(0.0, (paddy_daily * factor) - (rain_mm * payload.paddy_area_m2))
+        arecanut_after = arecanut_daily * factor
+        coconut_after = coconut_daily * factor
+
+        arecanut_after *= 1.0 - rng.uniform(0.0, 0.15)
+        coconut_after *= 1.0 - rng.uniform(0.0, 0.15)
+        total = arecanut_after + coconut_after + paddy_after_rain
+        daily_totals.append((arecanut_after, coconut_after, paddy_after_rain, total))
+
+    total_needed = sum(day[3] for day in daily_totals)
+    if total_needed <= 0:
+        raise HTTPException(status_code=400, detail="Total irrigation demand is 0.")
+
+    ration_factor = min(1.0, payload.tank_liters / total_needed)
+
+    schedule = []
+    tank_left = payload.tank_liters
+    for day in range(1, 15):
+        arecanut_l, coconut_l, paddy_l, total = daily_totals[day - 1]
+        arecanut_l *= ration_factor
+        coconut_l *= ration_factor
+        paddy_l *= ration_factor
+        total = arecanut_l + coconut_l + paddy_l
+
+        tank_left = max(0.0, tank_left - total)
+        schedule.append(
+            {
+                "day": day,
+                "crops": {
+                    "Arecanut": arecanut_l,
+                    "Coconut": coconut_l,
+                    "Paddy": paddy_l,
+                },
+                "total_liters": total,
+                "tank_left_liters": tank_left,
+                "rain_mm": rainfall_forecast[day - 1],
+            }
+        )
+
+    summary = {
+        "soil_moisture_factor": factor,
+        "ration_factor": ration_factor,
+        "tank_start_liters": payload.tank_liters,
+        "tank_end_liters": tank_left,
+        "fixed_daily_liters": base_daily,
+        "rainfall_source": "forecast" if payload.rainfall_forecast_mm else ("ml" if payload.model_name else "none"),
+    }
+
+    return {"summary": summary, "schedule": schedule}

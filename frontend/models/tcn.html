@@ -15,7 +15,7 @@
   <body data-model="tcn">
     <header>
       <h1>TCN Model</h1>
-      <p>Single-day prediction with plots and metrics.</p>
+      <p>Pick a 1, 7, or 14 day window and review plots + metrics.</p>
     </header>
     <main>
       <nav class="nav">
@@ -30,8 +30,15 @@
       <section class="grid cols-2">
         <article class="card">
           <h2>Run Prediction</h2>
-          <span class="badge">Sequence length: 1 day</span>
-          <p class="helper">Fill all 11 features for the selected day.</p>
+          <span class="badge" id="sequence-badge">Sequence length: 1 day</span>
+          <div class="input-row">
+            <select id="horizon-select" aria-label="Prediction window">
+              <option value="1">1 day</option>
+              <option value="7">7 days</option>
+              <option value="14">14 days</option>
+            </select>
+          </div>
+          <p class="helper">Fill all 11 features for each day in the window.</p>
           <div class="helper">
             <strong>Field guide:</strong>
             <ul>
@@ -65,14 +72,14 @@
       <section class="card">
         <h2>Plots</h2>
         <div class="plots">
-          <img src="/plots/tcn/loss_curve.png" alt="Loss curve" />
-          <img src="/plots/tcn/pred_vs_actual_line.png" alt="Prediction vs actual line" />
-          <img src="/plots/tcn/pred_vs_actual_scatter.png" alt="Prediction vs actual scatter" />
-          <img src="/plots/tcn/residuals_scatter.png" alt="Residual plot" />
-          <img src="/plots/tcn/residuals_hist.png" alt="Residual histogram" />
-          <img src="/plots/tcn/residuals_qq.png" alt="Residual QQ plot" />
-          <img src="/plots/tcn/cumulative_rainfall.png" alt="Cumulative rainfall" />
-          <img src="/plots/tcn/confusion_matrix.png" alt="Confusion matrix" />
+          <img src="/plots/tcn/1d/loss_curve.png" data-plot="loss_curve.png" alt="Loss curve" />
+          <img src="/plots/tcn/1d/pred_vs_actual_line.png" data-plot="pred_vs_actual_line.png" alt="Prediction vs actual line" />
+          <img src="/plots/tcn/1d/pred_vs_actual_scatter.png" data-plot="pred_vs_actual_scatter.png" alt="Prediction vs actual scatter" />
+          <img src="/plots/tcn/1d/residuals_scatter.png" data-plot="residuals_scatter.png" alt="Residual plot" />
+          <img src="/plots/tcn/1d/residuals_hist.png" data-plot="residuals_hist.png" alt="Residual histogram" />
+          <img src="/plots/tcn/1d/residuals_qq.png" data-plot="residuals_qq.png" alt="Residual QQ plot" />
+          <img src="/plots/tcn/1d/cumulative_rainfall.png" data-plot="cumulative_rainfall.png" alt="Cumulative rainfall" />
+          <img src="/plots/tcn/1d/confusion_matrix.png" data-plot="confusion_matrix.png" alt="Confusion matrix" />
         </div>
       </section>
     </main>

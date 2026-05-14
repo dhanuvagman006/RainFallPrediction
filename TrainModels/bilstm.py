@@ -27,71 +27,30 @@ scaler_y = MinMaxScaler()
 X_scaled = scaler_X.fit_transform(X)
 y_scaled = scaler_y.fit_transform(y)
 
-# 3. Reshape for Bi-LSTM [samples, time_steps, features]
-# We use 1 time step to allow for single-day input prediction
-X_reshaped = X_scaled.reshape((X_scaled.shape[0], 1, X_scaled.shape[1]))
+SEQUENCE_LENGTHS = [1, 7, 14]
 
-# Split into Training (80%) and Testing (20%)
-split = int(len(X_reshaped) * 0.8)
-X_train, X_test = X_reshaped[:split], X_reshaped[split:]
-y_train, y_test = y_scaled[:split], y_scaled[split:]
 
-# 4. Build Bidirectional LSTM Model
-model = Sequential([
-    Bidirectional(LSTM(64, activation='relu', return_sequences=False), input_shape=(1, len(feature_cols))),
-    Dropout(0.2),
-    Dense(32, activation='relu'),
-    Dense(1) # Final output for rainfall
-])
+def create_sequences(data_x, data_y, seq_len):
+    x_seq, y_seq = [], []
+    for i in range(len(data_x) - seq_len):
+        x_seq.append(data_x[i : i + seq_len])
+        y_seq.append(data_y[i + seq_len])
+    return np.array(x_seq), np.array(y_seq)
 
-model.compile(optimizer='adam', loss='mse')
 
-# 5. Training
-print("Starting Bi-LSTM training...")
-history = model.fit(X_train, y_train, epochs=30, batch_size=32, validation_split=0.1, verbose=1)
+def prepare_sequences(x_scaled, y_scaled, seq_len):
+    if seq_len == 1:
+        x_seq = x_scaled.reshape((x_scaled.shape[0], 1, x_scaled.shape[1]))
+        y_seq = y_scaled
+    else:
+        x_seq, y_seq = create_sequences(x_scaled, y_scaled, seq_len)
+    return x_seq, y_seq
+
 
 history_dir = Path(__file__).resolve().parent / "training_history"
 history_dir.mkdir(parents=True, exist_ok=True)
-history_path = history_dir / "bilstm.json"
-history_path.write_text(json.dumps(history.history, indent=2))
-
-# 6. Evaluation Logic
-def calculate_nse(y_true, y_pred):
-    numerator = np.sum((y_true - y_pred) ** 2)
-    denominator = np.sum((y_true - np.mean(y_true)) ** 2)
-    return 1 - (numerator / denominator)
-
-# Predict on test set
-y_pred_scaled = model.predict(X_test)
-
-# Inverse transform to original scale (mm)
-y_pred = scaler_y.inverse_transform(y_pred_scaled)
-y_actual = scaler_y.inverse_transform(y_test)
-
-# Calculate Metrics
-nse = calculate_nse(y_actual, y_pred)
-r2 = r2_score(y_actual, y_pred)
-mae = mean_absolute_error(y_actual, y_pred)
-rmse = np.sqrt(mean_squared_error(y_actual, y_pred))
-bias = np.mean(y_pred - y_actual)
-
-# 7. Print Results
-print("\n" + "="*40)
-print("       MODEL EVALUATION METRICS")
-print("="*40)
-print(f"Nash-Sutcliffe Efficiency (NSE): {nse:.4f}")
-print(f"R-Squared (R2) Score:           {r2:.4f}")
-print(f"Mean Absolute Error (MAE):      {mae:.2f} mm")
-print(f"Root Mean Squared Error (RMSE): {rmse:.2f} mm")
-print(f"Model Bias:                     {bias:.2f} mm")
-print("="*40)
-
-# 7. Save model + metrics for frontend consumption
 models_dir = Path(__file__).resolve().parent / "saved_models"
 models_dir.mkdir(parents=True, exist_ok=True)
-model_path = models_dir / "bilstm.keras"
-model.save(model_path)
-
 metrics_path = Path(__file__).resolve().parent / "model_metrics.json"
 metrics_payload = {}
 if metrics_path.exists():
@@ -100,19 +59,66 @@ if metrics_path.exists():
     except json.JSONDecodeError:
         metrics_payload = {}
 
-metrics_payload["bilstm"] = {
-    "nse": float(nse),
-    "r2": float(r2),
-    "mae": float(mae),
-    "rmse": float(rmse),
-    "bias": float(bias),
-}
-metrics_path.write_text(json.dumps(metrics_payload, indent=2))
+model_registry = {}
 
-# 8. Prediction Function for Custom Input
-def predict_prectotcorr(year, month, day, ps, t2m, t2m_max, t2m_min, rh2m, ws2m, wd2m, allsky_sfc_sw_dwn):
-    input_data = np.array([[year, month, day, ps, t2m, t2m_max, t2m_min, rh2m, ws2m, wd2m, allsky_sfc_sw_dwn]])
-    scaled_input = scaler_X.transform(input_data).reshape((1, 1, len(feature_cols)))
-    pred_scaled = model.predict(scaled_input, verbose=0)
-    prediction = scaler_y.inverse_transform(pred_scaled)
-    return max(0, prediction[0][0])
+
+def calculate_nse(y_true, y_pred):
+    numerator = np.sum((y_true - y_pred) ** 2)
+    denominator = np.sum((y_true - np.mean(y_true)) ** 2)
+    return 1 - (numerator / denominator)
+
+
+for seq_len in SEQUENCE_LENGTHS:
+    X_seq, y_seq = prepare_sequences(X_scaled, y_scaled, seq_len)
+    split = int(len(X_seq) * 0.8)
+    X_train, X_test = X_seq[:split], X_seq[split:]
+    y_train, y_test = y_seq[:split], y_seq[split:]
+
+    model = Sequential([
+        Bidirectional(LSTM(64, activation='relu', return_sequences=False), input_shape=(seq_len, len(feature_cols))),
+        Dropout(0.2),
+        Dense(32, activation='relu'),
+        Dense(1),
+    ])
+    model.compile(optimizer='adam', loss='mse')
+
+    print(f"Starting Bi-LSTM training ({seq_len} day window)...")
+    history = model.fit(X_train, y_train, epochs=30, batch_size=32, validation_split=0.1, verbose=1)
+
+    history_path = history_dir / f"bilstm_{seq_len}d.json"
+    history_path.write_text(json.dumps(history.history, indent=2))
+
+    y_pred_scaled = model.predict(X_test)
+    y_pred = scaler_y.inverse_transform(y_pred_scaled)
+    y_actual = scaler_y.inverse_transform(y_test)
+
+    nse = calculate_nse(y_actual, y_pred)
+    r2 = r2_score(y_actual, y_pred)
+    mae = mean_absolute_error(y_actual, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_actual, y_pred))
+    bias = np.mean(y_pred - y_actual)
+
+    print("\n" + "=" * 40)
+    print(f"       MODEL EVALUATION METRICS ({seq_len}d)")
+    print("=" * 40)
+    print(f"Nash-Sutcliffe Efficiency (NSE): {nse:.4f}")
+    print(f"R-Squared (R2) Score:           {r2:.4f}")
+    print(f"Mean Absolute Error (MAE):      {mae:.2f} mm")
+    print(f"Root Mean Squared Error (RMSE): {rmse:.2f} mm")
+    print(f"Model Bias:                     {bias:.2f} mm")
+    print("=" * 40)
+
+    model_path = models_dir / f"bilstm_{seq_len}d.keras"
+    model.save(model_path)
+
+    metrics_payload[f"bilstm_{seq_len}d"] = {
+        "nse": float(nse),
+        "r2": float(r2),
+        "mae": float(mae),
+        "rmse": float(rmse),
+        "bias": float(bias),
+    }
+
+    model_registry[seq_len] = model
+
+metrics_path.write_text(json.dumps(metrics_payload, indent=2))

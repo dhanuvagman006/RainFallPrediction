@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Irrigation Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body data-page="irrigation">
+    <header>
+      <h1>14-Day Irrigation Planner</h1>
+      <p>Enter tank water, soil moisture, and crop needs to get a 14-day plan.</p>
+    </header>
+    <main>
+      <nav class="nav">
+        <a href="/">Home</a>
+        <a href="/models/lstm">Models</a>
+      </nav>
+
+      <section class="grid cols-2">
+        <article class="card">
+          <h2>Inputs</h2>
+          <div class="input-grid">
+            <div class="input-row">
+              <input id="tank-liters" type="number" step="any" placeholder="Tank water (liters)" />
+              <input id="soil-moisture" type="number" step="any" placeholder="Soil moisture (%)" />
+            </div>
+          </div>
+
+          <h3>Crop Settings</h3>
+          <p class="helper">Fixed daily needs are applied in the backend.</p>
+          <div class="input-grid" id="crop-grid">
+            <div class="input-row">
+              <input id="arecanut-palms" type="number" step="any" placeholder="Arecanut palms (count)" />
+            </div>
+            <div class="input-row">
+              <input id="coconut-palms" type="number" step="any" placeholder="Coconut palms (count)" />
+            </div>
+            <div class="input-row">
+              <input id="paddy-area" type="number" step="any" placeholder="Paddy area (m^2)" />
+            </div>
+          </div>
+
+          <h3>Rainfall Adjustment (Optional)</h3>
+          <p class="helper">Provide a 14-day rainfall forecast (mm) to reduce irrigation per day.</p>
+          <textarea
+            id="rain-forecast"
+            rows="3"
+            placeholder="Example: 0, 2.5, 0, 1, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0"
+          ></textarea>
+
+          <div class="input-row">
+            <label class="helper">
+              <input id="use-ml" type="checkbox" />
+              Use ML rainfall prediction instead
+            </label>
+          </div>
+
+          <div id="ml-section" class="input-grid" style="display: none;">
+            <div class="input-row">
+              <select id="ml-model" aria-label="Model">
+                <option value="lstm">LSTM</option>
+                <option value="gru">GRU</option>
+                <option value="bilstm">Bi-LSTM</option>
+                <option value="tcn">TCN</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="transformer">Transformer</option>
+              </select>
+              <select id="ml-horizon" aria-label="Horizon">
+                <option value="1">1 day</option>
+                <option value="7">7 days</option>
+                <option value="14">14 days</option>
+              </select>
+            </div>
+            <div id="ml-input-grid" class="input-grid"></div>
+            <p class="helper">
+              The ML prediction produces one rainfall value and applies it to all 14 days.
+            </p>
+          </div>
+
+          <p id="plan-error" class="helper"></p>
+          <button id="plan-btn" class="primary">Generate 14-day plan</button>
+        </article>
+
+        <article class="card">
+          <h2>Plan Summary</h2>
+          <div id="plan-summary" class="helper">Enter inputs to generate a plan.</div>
+        </article>
+      </section>
+
+      <section class="card">
+        <h2>Daily Irrigation Schedule</h2>
+        <div class="table-wrap">
+          <table class="plan-table">
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Arecanut (L)</th>
+                <th>Coconut (L)</th>
+                <th>Paddy (L)</th>
+                <th>Total (L)</th>
+                <th>Tank Left (L)</th>
+              </tr>
+            </thead>
+            <tbody id="plan-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <footer>Irrigation Planner</footer>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

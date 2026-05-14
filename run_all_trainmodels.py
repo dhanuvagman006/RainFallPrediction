@@ -18,6 +18,9 @@ def main() -> int:
     python_files = sorted(
         p for p in train_models_dir.iterdir() if p.is_file() and p.suffix == ".py"
     )
+    generate_plots = train_models_dir / "generate_plots.py"
+    if generate_plots in python_files:
+        python_files = [p for p in python_files if p != generate_plots] + [generate_plots]
 
     if not python_files:
         print("No Python files found in TrainModels.")

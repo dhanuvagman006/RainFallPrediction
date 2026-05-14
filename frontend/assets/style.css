@@ -123,6 +123,23 @@ main {
   font-size: 0.9rem;
 }
 
+.input-row select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--outline);
+  font-size: 0.9rem;
+  background: #fff;
+}
+
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--outline);
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
 button.primary {
   padding: 10px 16px;
   border-radius: 10px;
@@ -169,6 +186,28 @@ button.primary:hover {
   border-radius: 12px;
   border: 1px solid var(--outline);
   background: #fff;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.plan-table th,
+.plan-table td {
+  border-bottom: 1px solid var(--outline);
+  padding: 10px 8px;
+  text-align: right;
+}
+
+.plan-table th:first-child,
+.plan-table td:first-child {
+  text-align: left;
 }
 
 .metrics {

@@ -39,14 +39,8 @@ FEATURE_COLS = [
 ]
 TARGET_COL = "prectotcorr"
 
-MODEL_CONFIGS = {
-    "lstm": {"sequence_length": 1, "model_file": "lstm.keras"},
-    "gru": {"sequence_length": 1, "model_file": "gru.keras"},
-    "bilstm": {"sequence_length": 1, "model_file": "bilstm.keras"},
-    "tcn": {"sequence_length": 1, "model_file": "tcn.keras"},
-    "hybrid": {"sequence_length": 7, "model_file": "hybrid.keras"},
-    "transformer": {"sequence_length": 14, "model_file": "transformer.keras"},
-}
+MODEL_NAMES = ["lstm", "gru", "bilstm", "tcn", "hybrid", "transformer"]
+SEQUENCE_LENGTHS = [1, 7, 14]
 
 
 def load_dataset(csv_path: Path) -> pd.DataFrame:
@@ -87,9 +81,13 @@ def prepare_test_data(df: pd.DataFrame, sequence_length: int) -> tuple[np.ndarra
     return x_test, y_test_inv, scaler_y
 
 
-def load_trained_model(models_dir: Path, model_file: str):
+def load_trained_model(models_dir: Path, model_name: str, seq_len: int):
+    model_file = f"{model_name}_{seq_len}d.keras"
     model_path = models_dir / model_file
-    if model_file == "tcn.keras" and TCN is not None:
+    if not model_path.exists():
+        print(f"Skipping missing model: {model_path}")
+        return None
+    if model_name == "tcn" and TCN is not None:
         return load_model(model_path, custom_objects={"TCN": TCN})
     return load_model(model_path)
 
@@ -203,41 +201,40 @@ def plot_confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray, threshold: flo
     plt.close()
 
 
-def plot_model_comparison(metrics_path: Path, output_dir: Path) -> None:
-    if not metrics_path.exists():
-        return
-
-    metrics = json.loads(metrics_path.read_text())
+def plot_model_comparison(metrics: dict, output_dir: Path, seq_len: int) -> None:
     if not metrics:
         return
 
-    model_names = list(metrics.keys())
-    rmse_vals = [metrics[m]["rmse"] for m in model_names]
-    mae_vals = [metrics[m]["mae"] for m in model_names]
-    r2_vals = [metrics[m]["r2"] for m in model_names]
+    model_names = [name for name in MODEL_NAMES if f"{name}_{seq_len}d" in metrics]
+    if not model_names:
+        return
+
+    rmse_vals = [metrics[f"{name}_{seq_len}d"]["rmse"] for name in model_names]
+    mae_vals = [metrics[f"{name}_{seq_len}d"]["mae"] for name in model_names]
+    r2_vals = [metrics[f"{name}_{seq_len}d"]["r2"] for name in model_names]
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 4))
     axes[0].bar(model_names, rmse_vals)
-    axes[0].set_title("RMSE Comparison")
+    axes[0].set_title(f"RMSE Comparison ({seq_len}d)")
     axes[0].set_ylabel("RMSE")
     axes[0].tick_params(axis="x", rotation=35)
 
     axes[1].bar(model_names, mae_vals)
-    axes[1].set_title("MAE Comparison")
+    axes[1].set_title(f"MAE Comparison ({seq_len}d)")
     axes[1].set_ylabel("MAE")
     axes[1].tick_params(axis="x", rotation=35)
 
     axes[2].bar(model_names, r2_vals)
-    axes[2].set_title("R2 Comparison")
+    axes[2].set_title(f"R2 Comparison ({seq_len}d)")
     axes[2].set_ylabel("R2")
     axes[2].tick_params(axis="x", rotation=35)
 
     plt.tight_layout()
-    plt.savefig(output_dir / "model_comparison.png", dpi=160)
+    plt.savefig(output_dir / f"model_comparison_{seq_len}d.png", dpi=160)
     plt.close()
 
 
-def plot_taylor_diagram(stats_map: dict[str, dict[str, float]], output_dir: Path) -> None:
+def plot_taylor_diagram(stats_map: dict[str, dict[str, float]], output_dir: Path, seq_len: int) -> None:
     fig = plt.figure(figsize=(7, 6))
     ax = fig.add_subplot(111, polar=True)
 
@@ -258,12 +255,12 @@ def plot_taylor_diagram(stats_map: dict[str, dict[str, float]], output_dir: Path
     ax.legend(loc="upper right", bbox_to_anchor=(1.35, 1.1))
 
     plt.tight_layout()
-    plt.savefig(output_dir / "taylor_diagram.png", dpi=160)
+    plt.savefig(output_dir / f"taylor_diagram_{seq_len}d.png", dpi=160)
     plt.close()
 
 
-def load_history(history_dir: Path, model_name: str) -> dict | None:
-    history_path = history_dir / f"{model_name}.json"
+def load_history(history_dir: Path, model_key: str) -> dict | None:
+    history_path = history_dir / f"{model_key}.json"
     if not history_path.exists():
         return None
     try:
@@ -286,50 +283,61 @@ def main() -> int:
 
     df = load_dataset(csv_path)
 
-    stats_map: dict[str, dict[str, float]] = {}
-
-    for model_name, config in MODEL_CONFIGS.items():
-        model_output_dir = plots_dir / model_name
-        model_output_dir.mkdir(parents=True, exist_ok=True)
-
-        history = load_history(history_dir, model_name)
-        if history:
-            plot_training_loss(history, model_output_dir)
-
-        x_test, y_true, scaler_y = prepare_test_data(df, config["sequence_length"])
-        model = load_trained_model(models_dir, config["model_file"])
-        y_pred_scaled = model.predict(x_test, verbose=0)
-
-        if y_pred_scaled.ndim == 2:
-            y_pred = y_pred_scaled
-        else:
-            y_pred = y_pred_scaled.reshape(-1, 1)
-
-        y_pred = scaler_y.inverse_transform(y_pred).astype(float)
-
-        y_true_flat = y_true.flatten()
-        y_pred_flat = y_pred.flatten()
-
-        plot_pred_vs_actual_line(y_true_flat, y_pred_flat, model_output_dir)
-        plot_pred_vs_actual_scatter(y_true_flat, y_pred_flat, model_output_dir)
-        plot_residuals(y_true_flat, y_pred_flat, model_output_dir)
-        plot_cumulative_rainfall(y_true_flat, y_pred_flat, model_output_dir)
-        plot_confusion_matrix(y_true_flat, y_pred_flat, args.threshold, model_output_dir)
-
-        corr = np.corrcoef(y_true_flat, y_pred_flat)[0, 1]
-        stats_map[model_name] = {
-            "corr": float(corr),
-            "std": float(np.std(y_pred_flat)),
-        }
-
-    comparison_dir = plots_dir / "comparison"
-    comparison_dir.mkdir(parents=True, exist_ok=True)
-
     metrics_path = base_dir / "model_metrics.json"
-    plot_model_comparison(metrics_path, comparison_dir)
+    metrics_payload = {}
+    if metrics_path.exists():
+        try:
+            metrics_payload = json.loads(metrics_path.read_text())
+        except json.JSONDecodeError:
+            metrics_payload = {}
 
-    if stats_map:
-        plot_taylor_diagram(stats_map, comparison_dir)
+    for seq_len in SEQUENCE_LENGTHS:
+        stats_map: dict[str, dict[str, float]] = {}
+
+        for model_name in MODEL_NAMES:
+            model_key = f"{model_name}_{seq_len}d"
+            model_output_dir = plots_dir / model_name / f"{seq_len}d"
+            model_output_dir.mkdir(parents=True, exist_ok=True)
+
+            history = load_history(history_dir, model_key)
+            if history:
+                plot_training_loss(history, model_output_dir)
+
+            x_test, y_true, scaler_y = prepare_test_data(df, seq_len)
+            model = load_trained_model(models_dir, model_name, seq_len)
+            if model is None:
+                continue
+            y_pred_scaled = model.predict(x_test, verbose=0)
+
+            if y_pred_scaled.ndim == 2:
+                y_pred = y_pred_scaled
+            else:
+                y_pred = y_pred_scaled.reshape(-1, 1)
+
+            y_pred = scaler_y.inverse_transform(y_pred).astype(float)
+
+            y_true_flat = y_true.flatten()
+            y_pred_flat = y_pred.flatten()
+
+            plot_pred_vs_actual_line(y_true_flat, y_pred_flat, model_output_dir)
+            plot_pred_vs_actual_scatter(y_true_flat, y_pred_flat, model_output_dir)
+            plot_residuals(y_true_flat, y_pred_flat, model_output_dir)
+            plot_cumulative_rainfall(y_true_flat, y_pred_flat, model_output_dir)
+            plot_confusion_matrix(y_true_flat, y_pred_flat, args.threshold, model_output_dir)
+
+            corr = np.corrcoef(y_true_flat, y_pred_flat)[0, 1]
+            stats_map[model_name] = {
+                "corr": float(corr),
+                "std": float(np.std(y_pred_flat)),
+            }
+
+        comparison_dir = plots_dir / "comparison"
+        comparison_dir.mkdir(parents=True, exist_ok=True)
+
+        plot_model_comparison(metrics_payload, comparison_dir, seq_len)
+
+        if stats_map:
+            plot_taylor_diagram(stats_map, comparison_dir, seq_len)
 
     print(f"Plots saved to: {plots_dir}")
     return 0
