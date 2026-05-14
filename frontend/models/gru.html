@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GRU Model</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body data-model="gru">
+    <header>
+      <h1>GRU Model</h1>
+      <p>Single-day prediction with plots and metrics.</p>
+    </header>
+    <main>
+      <nav class="nav">
+        <a href="/">Home</a>
+        <a href="/models/lstm">LSTM</a>
+        <a href="/models/bilstm">Bi-LSTM</a>
+        <a href="/models/tcn">TCN</a>
+        <a href="/models/hybrid">Hybrid</a>
+        <a href="/models/transformer">Transformer</a>
+      </nav>
+
+      <section class="grid cols-2">
+        <article class="card">
+          <h2>Run Prediction</h2>
+          <span class="badge">Sequence length: 1 day</span>
+          <p class="helper">Fill all 11 features for the selected day.</p>
+          <div class="helper">
+            <strong>Field guide:</strong>
+            <ul>
+              <li>prectotcorr: corrected total precipitation (mm)</li>
+              <li>ps: surface pressure</li>
+              <li>t2m: air temperature at 2 m</li>
+              <li>t2m_max: daily max air temperature at 2 m</li>
+              <li>t2m_min: daily min air temperature at 2 m</li>
+              <li>rh2m: relative humidity at 2 m</li>
+              <li>ws2m: wind speed at 2 m</li>
+              <li>wd2m: wind direction at 2 m</li>
+              <li>allsky_sfc_sw_dwn: all-sky surface shortwave downward radiation</li>
+            </ul>
+          </div>
+          <div id="input-grid" class="input-grid"></div>
+          <div class="input-row">
+            <input id="roof-area" type="number" step="any" placeholder="Roof area (m^2)" />
+          </div>
+          <p id="prediction-error" class="helper"></p>
+          <button id="predict-btn" class="primary">Predict rainfall</button>
+          <div class="output" id="prediction-output"></div>
+          <p class="helper">Estimated water collected:</p>
+          <div class="output" id="water-output"></div>
+        </article>
+        <article class="card">
+          <h2>Latest Metrics</h2>
+          <div id="metrics" class="metrics"></div>
+        </article>
+      </section>
+
+      <section class="card">
+        <h2>Plots</h2>
+        <div class="plots">
+          <img src="/plots/gru/loss_curve.png" alt="Loss curve" />
+          <img src="/plots/gru/pred_vs_actual_line.png" alt="Prediction vs actual line" />
+          <img src="/plots/gru/pred_vs_actual_scatter.png" alt="Prediction vs actual scatter" />
+          <img src="/plots/gru/residuals_scatter.png" alt="Residual plot" />
+          <img src="/plots/gru/residuals_hist.png" alt="Residual histogram" />
+          <img src="/plots/gru/residuals_qq.png" alt="Residual QQ plot" />
+          <img src="/plots/gru/cumulative_rainfall.png" alt="Cumulative rainfall" />
+          <img src="/plots/gru/confusion_matrix.png" alt="Confusion matrix" />
+        </div>
+      </section>
+    </main>
+    <footer>GRU Model Dashboard</footer>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rainfall Models Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Rainfall Model Studio</h1>
+      <p>Select a model to run predictions and review plots.</p>
+    </header>
+    <main>
+      <nav class="nav">
+        <a href="/models/lstm">LSTM</a>
+        <a href="/models/gru">GRU</a>
+        <a href="/models/bilstm">Bi-LSTM</a>
+        <a href="/models/tcn">TCN</a>
+        <a href="/models/hybrid">Hybrid</a>
+        <a href="/models/transformer">Transformer</a>
+      </nav>
+      <section class="grid cols-2">
+        <article class="card">
+          <h2>What you can do</h2>
+          <ul>
+            <li>Enter daily weather features and run predictions.</li>
+            <li>Compare predicted rainfall with actual rainfall plots.</li>
+            <li>Review loss curves, residual diagnostics, and confusion matrices.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h2>Before you start</h2>
+          <p class="helper">
+            Make sure the models are trained and plots generated. The frontend reads
+            the saved .keras models and plot images from TrainModels/plots.
+          </p>
+        </article>
+      </section>
+    </main>
+    <footer>Rainfall Prediction Frontend</footer>
+  </body>
+</html>

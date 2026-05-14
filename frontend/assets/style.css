@@ -1,0 +1,208 @@
+:root {
+  --bg: #f6f1e9;
+  --ink: #1c1a16;
+  --muted: #6f6557;
+  --card: #fff6ea;
+  --accent: #d97706;
+  --accent-2: #0f766e;
+  --outline: #e1d5c4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at top left, #f0d9b5 0%, #f6f1e9 35%, #edf2f4 100%);
+  min-height: 100vh;
+}
+
+header {
+  padding: 32px 24px 12px;
+  text-align: center;
+}
+
+header h1 {
+  margin: 0 0 8px;
+  font-size: 2.2rem;
+}
+
+header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 24px 64px;
+}
+
+.nav {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 12px 0 32px;
+}
+
+.nav a {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--outline);
+  background: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nav a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(28, 26, 22, 0.12);
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+.grid.cols-2 {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--outline);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 10px 24px rgba(28, 26, 22, 0.08);
+  animation: fadeUp 0.6s ease both;
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.4rem;
+}
+
+.card h3 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.badge {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.12);
+  color: var(--accent-2);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.input-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.input-row input {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--outline);
+  font-size: 0.9rem;
+}
+
+button.primary {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+button.primary:hover {
+  transform: translateY(-2px);
+}
+
+.helper {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.helper ul {
+  margin: 8px 0 0 16px;
+  padding: 0;
+}
+
+.helper li {
+  margin: 4px 0;
+}
+
+.output {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-2);
+}
+
+.plots {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.plots img {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--outline);
+  background: #fff;
+}
+
+.metrics {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.metric {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px dashed var(--outline);
+}
+
+footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 700px) {
+  header h1 {
+    font-size: 1.8rem;
+  }
+}
